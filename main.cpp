@@ -165,12 +165,30 @@ char sceneFilenameSuffixes[][13] = {
         "T.BIN"
 };
 
-PlayDisk loadPlayDisk() {
-    auto fp = std::ifstream("PLAYDISK.DAT", std::ios::binary);
+std::ifstream openFileForRead(const std::string &file) {
+    auto fp = std::ifstream(file, std::ios::binary);
     if (!fp.is_open()) {
-        printf("Failed to open PLAYDISK.DAT\n");
+        std::cout << "Error: Failed to open " << file << "\n";
         exit(1);
     }
+    return fp;
+}
+
+std::ofstream openFileForWrite(const std::string &file) {
+    auto fp = std::ofstream(file, std::ios::binary);
+    if (!fp.is_open()) {
+        std::cout << "Error: Failed to open '" << file << "' for writing.\n";
+        exit(1);
+    }
+    return fp;
+}
+
+std::ifstream openTD3ExeForRead() {
+    return openFileForRead("TD3.EXE");
+}
+
+PlayDisk loadPlayDisk() {
+    auto fp = openFileForRead("PLAYDISK.DAT");
     fp.seekg(0xae); // num cars position
     uint8_t numCars;
     fp.read((char *)&numCars, 1);
@@ -194,28 +212,6 @@ PlayDisk loadPlayDisk() {
     }
     fp.close();
     return playDisk;
-}
-
-std::ifstream openFileForRead(const std::string &file) {
-    auto fp = std::ifstream(file, std::ios::binary);
-    if (!fp.is_open()) {
-        std::cout << "Failed to open " << file << "\n";
-        exit(1);
-    }
-    return fp;
-}
-
-std::ofstream openFileForWrite(const std::string &file) {
-    auto fp = std::ofstream(file, std::ios::binary);
-    if (!fp.is_open()) {
-        std::cout << "Failed to open '" << file << "' for writing.\n";
-        exit(1);
-    }
-    return fp;
-}
-
-std::ifstream openTD3ExeForRead() {
-    return openFileForRead("TD3.EXE");
 }
 
 std::vector<DataArchiveFileStruct> readFileInfoTbl(std::ifstream &fp, int startOffset, int numRecords) {
@@ -253,7 +249,10 @@ void dumpFile(const std::map<unsigned int, std::string> &filenames, const DataAr
         default: return;
     }
 
-    auto outFile = openFileForWrite(getoutputFilename(filenames, fileInfo));
+    auto outputFilename = getoutputFilename(filenames, fileInfo);
+    auto outFile = openFileForWrite(outputFilename);
+
+    std::cout << "Extracting: " << outputFilename << "\n";
 
     archiveFile.seekg(fileInfo.offset);
     archiveFile.read((char *)buf, fileInfo.size - 1);
@@ -299,6 +298,7 @@ void dumpEngineFiles() {
     for (auto &fileInfo : fileInfoTable) {
         dumpFile(filenameIdMap, fileInfo, "");
     }
+    fp.close();
 }
 
 void dumpCar(const std::string &carFilename) {
