@@ -17,4 +17,5 @@ Usage
     options:
        x - Extract game files
        p - Patch TD3.EXE to use extracted files
+       d inputLZFile outputFile - decompress LZW compressed file.
 ```

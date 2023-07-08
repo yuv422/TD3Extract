@@ -3,4 +3,4 @@ project(TD3Extract)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(TD3Extract main.cpp)
+add_executable(TD3Extract main.cpp lzwdecode.cpp lzwdecode.h file.cpp file.h)

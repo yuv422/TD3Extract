@@ -27,6 +27,8 @@ SOFTWARE.
 #include <string>
 #include <vector>
 #include <sstream>
+#include "file.h"
+#include "lzwdecode.h"
 
 short calcHash1(const std::string &filename, short seed) {
     int hash = 0;
@@ -165,23 +167,7 @@ char sceneFilenameSuffixes[][13] = {
         "T.BIN"
 };
 
-std::ifstream openFileForRead(const std::string &file) {
-    auto fp = std::ifstream(file, std::ios::binary);
-    if (!fp.is_open()) {
-        std::cout << "Error: Failed to open " << file << "\n";
-        exit(1);
-    }
-    return fp;
-}
 
-std::ofstream openFileForWrite(const std::string &file) {
-    auto fp = std::ofstream(file, std::ios::binary);
-    if (!fp.is_open()) {
-        std::cout << "Error: Failed to open '" << file << "' for writing.\n";
-        exit(1);
-    }
-    return fp;
-}
 
 std::ifstream openTD3ExeForRead() {
     return openFileForRead("TD3.EXE");
@@ -383,7 +369,8 @@ void printUsage(char **argv) {
     std::cout << "\nUsage: " << argv[0] << " option\n\n";
     std::cout << "Options:\n";
     std::cout << "  x - Extract files\n";
-    std::cout << "  p - Patch TD3.EXE to use extracted files\n\n";
+    std::cout << "  p - Patch TD3.EXE to use extracted files\n";
+    std::cout << "  d inputLZFile outputFile - decompress LZW compressed file.\n\n";
 
     exit(1);
 }
@@ -402,6 +389,9 @@ int main(int argc, char **argv) {
         dumpSceneFiles(playdisk);
     } else if (argv[1][0] == 'p') {
         patchExe();
+    } else if (argv[1][0] == 'd' && argc >= 4) {
+        LZWDecoder lzwDecoder;
+        lzwDecoder.decode(argv[2], argv[3]);
     } else {
         printUsage(argv);
     }
