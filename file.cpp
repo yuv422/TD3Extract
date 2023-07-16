@@ -48,3 +48,28 @@ int getFileSize(std::ifstream &file) {
     file.seekg(0, std::ios_base::beg);
     return size;
 }
+
+void unpackRLEImage(const std::string &srcFilename, const std::string &outFilename) {
+    auto srcFile = openFileForRead(srcFilename);
+    auto outFile = openFileForWrite(outFilename);
+
+    int srcSize = getFileSize(srcFile);
+
+    for (int curPos = 0; curPos < srcSize; curPos += 2) {
+        char pixelValue;
+        uint8_t lengthByte;
+        srcFile.read(&pixelValue, 1);
+
+        srcFile.read(reinterpret_cast<char *>(&lengthByte), 1);
+        if (lengthByte & 1) {
+            outFile.write(&pixelValue, 1);
+        }
+        lengthByte = lengthByte >> 1;
+        for (int i = 0; i < lengthByte; i++) {
+            outFile.write(&pixelValue, 1);
+            outFile.write(&pixelValue, 1);
+        }
+    }
+    outFile.close();
+    srcFile.close();
+}

@@ -28,7 +28,8 @@ SOFTWARE.
 #include <vector>
 #include <sstream>
 #include "file.h"
-#include "lzwdecode.h"
+#include "lzw.h"
+#include "image.h"
 
 short calcHash1(const std::string &filename, short seed) {
     int hash = 0;
@@ -371,6 +372,9 @@ void printUsage(char **argv) {
     std::cout << "  x - Extract files\n";
     std::cout << "  p - Patch TD3.EXE to use extracted files\n";
     std::cout << "  d inputLZFile outputFile - decompress LZW compressed file.\n\n";
+    std::cout << "  r inputFile outputFile - decompress RLE compressed file.\n\n";
+    std::cout << "  i inputFile width paletteFile - decompress packed game image file into PNG file.\n\n";
+    std::cout << "  e inputFile outputFile - compress PNG image into RLE+LZW encoded format for use by game engine.\n\n";
 
     exit(1);
 }
@@ -392,6 +396,16 @@ int main(int argc, char **argv) {
     } else if (argv[1][0] == 'd' && argc >= 4) {
         LZWDecoder lzwDecoder;
         lzwDecoder.decode(argv[2], argv[3]);
+    } else if (argv[1][0] == 'r' && argc >= 4) {
+        unpackRLEImage(argv[2], argv[3]);
+    } else if (argv[1][0] == 'i' && argc >= 5) {
+        Image image;
+        image.loadTD3LZImageFile(argv[2], std::atoi(argv[3]), argv[4]);
+        image.savePngFile(std::string(argv[2]) + ".png");
+    } else if (argv[1][0] == 'e' && argc >= 4) {
+        Image image;
+        image.loadPngFile(argv[2]);
+        image.saveLZWFile(std::string(argv[3]));
     } else {
         printUsage(argv);
     }

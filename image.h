@@ -1,3 +1,4 @@
+//
 /*
 MIT License
 
@@ -21,40 +22,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#ifndef TD3EXTRACT_LZWDECODE_H
-#define TD3EXTRACT_LZWDECODE_H
+#ifndef TD3EXTRACT_IMAGE_H
+#define TD3EXTRACT_IMAGE_H
 
-#include <fstream>
 #include <string>
-#include <map>
 #include <vector>
 
-typedef std::vector<uint8_t> Sequence;
-
-class LZWDecoder {
+class Image {
 private:
-    std::ifstream srcFile;
-    std::ofstream outFile;
-    std::map<int, Sequence> dictionary;
-    int nextAvailableCodeId = 0x102;
-    int currentCodeIdBitLength = 9;
-    int codeIdBitLengthChange = 0x200;
+    unsigned int width = 0;
+    unsigned int height = 0;
+    std::vector<uint8_t> palette;
+    uint8_t *pixels = nullptr;
 
-    Sequence previousEmittedSequence;
-
-    unsigned char *inputBuf = nullptr;
-    int inputSize = 0;
-    int curBitPosition = 0;
 public:
-    LZWDecoder();
-    bool decode(const std::string &srcFilename, const std::string &outFilename);
+    bool loadTD3LZImageFile(const std::string &srcFilename, int imageWidth, const std::string &srcPaletteFilename);
+    bool loadPngFile(const std::string &srcFilename);
+    bool savePngFile(const std::string &pngFilename);
+    bool saveLZWFile(const std::string &outFilename);
 
 private:
-    void resetState();
-    int getNextCodeFromInput();
-    bool isCodeIdInDictionary(int codeId);
-    void writeSequenceToFile(Sequence &sequence);
-    void addSequenceToDictionary(Sequence &sequence);
-};
+    void loadPalette(const std::string &srcPaletteFilename);
+    std::vector<uint8_t> unpackRLE(std::vector<uint8_t> packedData);
+    void generatePixelBufFromUnpackedRLEData(const std::vector<uint8_t> &unpackedPixels);
 
-#endif //TD3EXTRACT_LZWDECODE_H
+    std::vector<uint8_t> formatPixelsForRLE();
+    std::vector<uint8_t> packRLE(std::vector<uint8_t> &unpackedData);
+};
+#endif //TD3EXTRACT_IMAGE_H

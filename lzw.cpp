@@ -21,7 +21,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#include "lzwdecode.h"
+#include <iostream>
+#include "lzw.h"
 #include "file.h"
 
 LZWDecoder::LZWDecoder() = default;
@@ -30,10 +31,10 @@ constexpr int END_OF_STREAM_MARKER = 0x101;
 constexpr int RESET_DICTIONARY_MARKER = 0x100;
 constexpr int MAX_CODE_ID_BIT_LENGTH = 12;
 
-bool LZWDecoder::decode(const std::string &srcFilename, const std::string &outFilename) {
+std::vector<uint8_t> LZWDecoder::decode(const std::string &srcFilename) {
     resetState();
+    decodedBuffer.clear();
     srcFile = openFileForRead(srcFilename);
-    outFile = openFileForWrite(outFilename);
     inputSize = getFileSize(srcFile);
     inputBuf = new unsigned char [inputSize];
     srcFile.read((char *)inputBuf, inputSize);
@@ -69,8 +70,20 @@ bool LZWDecoder::decode(const std::string &srcFilename, const std::string &outFi
 
     delete inputBuf;
     srcFile.close();
-    outFile.close();
-    return false;
+    return decodedBuffer;
+}
+
+bool LZWDecoder::decode(const std::string &srcFilename, const std::string &outFilename) {
+    auto outFile = openFileForWrite(outFilename);
+
+    decode(srcFilename);
+
+    for (int i = 0; i < decodedBuffer.size(); i++) {
+        uint8_t value = decodedBuffer[i];
+        outFile.write(reinterpret_cast<const char *>(&value), 1);
+    }
+
+    return true;
 }
 
 void LZWDecoder::resetState() {
@@ -98,7 +111,9 @@ int LZWDecoder::getNextCodeFromInput() {
         word = word >> 1 | (unsigned short)(byte & 1) << 0xf;
         byte = byte >> 1;
     }
-    return word & lzwCodeIdBitMaskTbl[currentCodeIdBitLength - 9];
+    int codeId = word & lzwCodeIdBitMaskTbl[currentCodeIdBitLength - 9];
+//    printf("codeId: %d bitlength: %d\n", codeId, currentCodeIdBitLength);
+    return codeId;
 }
 
 bool LZWDecoder::isCodeIdInDictionary(int codeId) {
@@ -107,7 +122,8 @@ bool LZWDecoder::isCodeIdInDictionary(int codeId) {
 
 void LZWDecoder::writeSequenceToFile(Sequence &sequence) {
     for (auto &value : sequence) {
-        outFile.write(reinterpret_cast<const char *>(&value), 1);
+        decodedBuffer.emplace_back(value);
+//        outFile.write(reinterpret_cast<const char *>(&value), 1);
     }
 }
 
@@ -118,4 +134,97 @@ void LZWDecoder::addSequenceToDictionary(Sequence &sequence) {
         currentCodeIdBitLength++;
         codeIdBitLengthChange = codeIdBitLengthChange << 1;
     }
+}
+
+
+void LZWEncoder::encode(const std::vector<uint8_t> &data, const std::string &outFilename) {
+    auto outFile = openFileForWrite(outFilename);
+
+    auto lzw = encode(data);
+
+    for (int i = 0; i < lzw.size(); i++) {
+        uint8_t value = lzw[i];
+        outFile.write(reinterpret_cast<const char *>(&value), 1);
+    }
+    outFile.close();
+}
+
+std::vector<uint8_t> LZWEncoder::encode(const std::vector<uint8_t> &data) {
+    inputBuffer = data;
+    lzwBuffer.clear();
+    curBitPosition = 0;
+    resetState();
+    writeCodeId(RESET_DICTIONARY_MARKER);
+
+    while(curInputPosition < inputBuffer.size()) {
+        Sequence sequence;
+        sequence.emplace_back(inputBuffer[curInputPosition++]);
+        auto newSequence = sequence;
+        while (isSequenceInDictionary(newSequence) && curInputPosition < inputBuffer.size()) {
+            newSequence.emplace_back(inputBuffer[curInputPosition++]);
+            if (isSequenceInDictionary(newSequence)) {
+                sequence = newSequence;
+            }
+        }
+        writeCodeId(dictionary[sequence]);
+        if (sequence.size() != newSequence.size()) {
+            addSequenceToDictionary(newSequence);
+            curInputPosition--;
+        }
+    }
+
+    writeCodeId(END_OF_STREAM_MARKER);
+
+    return lzwBuffer;
+}
+
+bool LZWEncoder::isSequenceInDictionary(Sequence &sequence) {
+    return dictionary.find(sequence) != dictionary.end();
+}
+
+void LZWEncoder::addSequenceToDictionary(Sequence &sequence) {
+    dictionary[sequence] = nextAvailableCodeId;
+    nextAvailableCodeId++;
+
+    if(nextAvailableCodeId >= codeIdBitLengthChange+1) {
+        if (currentCodeIdBitLength == MAX_CODE_ID_BIT_LENGTH) {
+            writeCodeId(RESET_DICTIONARY_MARKER);
+            resetState();
+        } else {
+            currentCodeIdBitLength++;
+            codeIdBitLengthChange = codeIdBitLengthChange << 1;
+        }
+    }
+}
+
+void LZWEncoder::resetState() {
+    dictionary.clear();
+    for (int i = 0; i < 256; i++) {
+        dictionary[{(uint8_t)i}] = i;
+    }
+    nextAvailableCodeId = 0x102;
+    currentCodeIdBitLength = 9;
+    codeIdBitLengthChange = 0x200;
+    previousEmittedSequence.clear();
+}
+
+bool LZWEncoder::writeCodeId(int codeId) {
+//    printf("codeId: %d bitlength: %d\n", codeId, currentCodeIdBitLength);
+//    int byteOffset = curBitPosition / 8;
+    int byteRemainder = curBitPosition % 8;
+
+    if (byteRemainder == 0) {
+        lzwBuffer.emplace_back(codeId & 0xff);
+        lzwBuffer.emplace_back(codeId >> 8);
+    } else {
+        auto byte = lzwBuffer.back();
+        lzwBuffer[lzwBuffer.size()-1] = byte | ((codeId & 0xff) << byteRemainder);
+        lzwBuffer.emplace_back(codeId >> (8 - byteRemainder));
+        if ((8 - byteRemainder) + 8 < currentCodeIdBitLength) {
+            lzwBuffer.emplace_back((codeId >> ((8 - byteRemainder) + 8)));
+        }
+    }
+    curBitPosition += currentCodeIdBitLength;
+
+    return false;
 }

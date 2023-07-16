@@ -31,4 +31,6 @@ std::ifstream openFileForRead(const std::string &file);
 std::ofstream openFileForWrite(const std::string &file);
 int getFileSize(std::ifstream &file);
 
+void unpackRLEImage(const std::string &srcFilename, const std::string &outFilename);
+
 #endif //TD3EXTRACT_FILE_H
