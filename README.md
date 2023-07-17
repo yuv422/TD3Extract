@@ -14,8 +14,18 @@ Usage
 ```
     TD3Extract option
 
-    options:
-       x - Extract game files
-       p - Patch TD3.EXE to use extracted files
-       d inputLZFile outputFile - decompress LZW compressed file.
+    Options:
+      -extractFiles                          : Extract files
+      -patchEXE                              : Patch TD3.EXE to use extracted files
+      -decompressLZW inLZFile outFile        : Decompress LZW compressed file.
+      -unpackRLE inFile outFile              : Decompress RLE compressed file.
+      -extractImage inFile width paletteFile : Decompress packed game image file
+                                               into PNG file.
+      -encodeImage inFile outFile            : Compress PNG image into RLE+LZW
+                                               encoded format for use by the game.
 ```
+
+Engine File Formats
+-------------------
+
+More details on files used by the game can be found in the [/info](/info) directory.

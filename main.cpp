@@ -369,12 +369,14 @@ void patchExe() {
 void printUsage(char **argv) {
     std::cout << "\nUsage: " << argv[0] << " option\n\n";
     std::cout << "Options:\n";
-    std::cout << "  x - Extract files\n";
-    std::cout << "  p - Patch TD3.EXE to use extracted files\n";
-    std::cout << "  d inputLZFile outputFile - decompress LZW compressed file.\n\n";
-    std::cout << "  r inputFile outputFile - decompress RLE compressed file.\n\n";
-    std::cout << "  i inputFile width paletteFile - decompress packed game image file into PNG file.\n\n";
-    std::cout << "  e inputFile outputFile - compress PNG image into RLE+LZW encoded format for use by game engine.\n\n";
+    std::cout << "  -extractFiles                          : Extract files\n";
+    std::cout << "  -patchEXE                              : Patch TD3.EXE to use extracted files\n";
+    std::cout << "  -decompressLZW inLZFile outFile        : Decompress LZW compressed file.\n";
+    std::cout << "  -unpackRLE inFile outFile              : Decompress RLE compressed file.\n";
+    std::cout << "  -extractImage inFile width paletteFile : Decompress packed game image file\n";
+    std::cout << "                                           into PNG file.\n";
+    std::cout << "  -encodeImage inFile outFile            : Compress PNG image into RLE+LZW\n";
+    std::cout << "                                           encoded format for use by the game.\n\n";
 
     exit(1);
 }
@@ -386,23 +388,23 @@ int main(int argc, char **argv) {
         printUsage(argv);
     }
 
-    if (argv[1][0] == 'x') {
+    if (!strcmp(argv[1], "-extractFiles")) {
         auto playdisk = loadPlayDisk();
         dumpEngineFiles();
         dumpCarFiles(playdisk);
         dumpSceneFiles(playdisk);
-    } else if (argv[1][0] == 'p') {
+    } else if (!strcmp(argv[1], "-patchEXE")) {
         patchExe();
-    } else if (argv[1][0] == 'd' && argc >= 4) {
+    } else if (!strcmp(argv[1], "-decompressLZW") && argc >= 4) {
         LZWDecoder lzwDecoder;
         lzwDecoder.decode(argv[2], argv[3]);
-    } else if (argv[1][0] == 'r' && argc >= 4) {
+    } else if (!strcmp(argv[1], "-unpackRLE") && argc >= 4) {
         unpackRLEImage(argv[2], argv[3]);
-    } else if (argv[1][0] == 'i' && argc >= 5) {
+    } else if (!strcmp(argv[1], "-extractImage") && argc >= 5) {
         Image image;
         image.loadTD3LZImageFile(argv[2], std::atoi(argv[3]), argv[4]);
         image.savePngFile(std::string(argv[2]) + ".png");
-    } else if (argv[1][0] == 'e' && argc >= 4) {
+    } else if (!strcmp(argv[1], "-encodeImage") && argc >= 4) {
         Image image;
         image.loadPngFile(argv[2]);
         image.saveLZWFile(std::string(argv[3]));
